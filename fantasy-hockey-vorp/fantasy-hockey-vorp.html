@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fantasy Hockey VORP Draft Board</title>
+  <style>
+    :root { --ink:#17212b; --muted:#607080; --line:#d9e1e8; --blue:#0969da; --wash:#f5f8fb; --good:#007a52; }
+    * { box-sizing:border-box } body { margin:0; background:var(--wash); color:var(--ink); font:15px/1.45 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif }
+    main { max-width:1200px; margin:auto; padding:34px 22px 56px } h1 { margin:0 0 4px; font-size:30px } h2 { font-size:17px; margin:0 0 14px } p { color:var(--muted); margin:0 0 20px } .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(270px,1fr)); gap:16px; margin:20px 0 }
+    section { background:white; border:1px solid var(--line); border-radius:12px; padding:18px; box-shadow:0 1px 2px #17212b08 } label { display:block; font-size:12px; font-weight:700; margin:10px 0 4px; color:#445464 } input,select,button { font:inherit } input,select { width:100%; border:1px solid #b9c6d1; border-radius:7px; padding:8px; background:white } .twocol { display:grid; grid-template-columns:1fr 1fr; gap:10px } .threecol { display:grid; grid-template-columns:repeat(3,1fr); gap:9px }
+    button { border:0; border-radius:7px; padding:9px 13px; cursor:pointer; font-weight:700; background:var(--blue); color:white } button.secondary { background:#e9eef3; color:#314354 } button.remove { padding:4px 8px; background:#fff1f1; color:#a61b1b } .actions { display:flex; flex-wrap:wrap; gap:9px; margin-top:14px }
+    #scoringRows { margin-top:4px } .score-row { display:grid; grid-template-columns:1.25fr 1fr .65fr auto; gap:7px; align-items:end; margin:7px 0 } .hint { font-size:12px; color:var(--muted); margin-top:8px } .hidden { display:none!important }
+    #summary { margin:20px 0 12px; color:#33485c } .filters { display:flex; flex-wrap:wrap; gap:14px; align-items:center; margin:10px 0 } .filters label { display:flex; align-items:center; gap:5px; margin:0; font-size:14px; color:var(--ink) } .filters input { width:auto } .tablewrap { overflow:auto; max-height:650px; background:white; border:1px solid var(--line); border-radius:12px } table { width:100%; border-collapse:collapse; min-width:750px } th,td { padding:10px 12px; text-align:left; border-bottom:1px solid #e8edf1; white-space:nowrap } th { background:#f8fafc; font-size:12px; color:#506171; cursor:pointer; position:sticky; top:0 } tbody tr:hover { background:#f5f9ff } tr.drafted { opacity:.52; text-decoration:line-through } .draft-check { width:auto } .rank { color:var(--muted); font-weight:700 } .vorp { color:var(--good); font-weight:800 } .negative { color:#a61b1b }
+    .empty { padding:30px; text-align:center; color:var(--muted) } footer { margin-top:14px; font-size:12px; color:var(--muted) }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Fantasy Hockey VORP Draft Board</h1>
+  <p>Upload projections, assign your point values, and rank players by value over replacement for your exact league.</p>
+
+  <div class="grid">
+    <section>
+      <h2>1. Upload projections</h2>
+      <label>Skater projections CSV <input id="skaterFile" type="file" accept=".csv,text/csv"></label>
+      <div id="skaterStatus" class="hint">Skaters need a player-name and position column.</div>
+      <div id="skaterMapping" class="hidden">
+        <label>Player name column <select id="skaterNameCol"></select></label>
+        <label>Position column <select id="skaterPositionCol"></select></label>
+      </div>
+      <label>Goalie projections CSV <input id="goalieFile" type="file" accept=".csv,text/csv"></label>
+      <div id="goalieStatus" class="hint">Goalies are automatically assigned position G; a position column is optional.</div>
+      <div id="goalieMapping" class="hidden">
+        <label>Goalie name column <select id="goalieNameCol"></select></label>
+      </div>
+    </section>
+    <section>
+      <h2>2. League setup</h2>
+      <div class="threecol">
+        <div><label>Teams<input id="teams" type="number" min="2" value="10"></label></div>
+        <div><label>Forward slots<input id="forwards" type="number" min="0" value="9"></label></div>
+        <div><label>Defense slots<input id="defense" type="number" min="0" value="5"></label></div>
+        <div><label>Goalie slots<input id="goalies" type="number" min="0" value="2"></label></div>
+        <div><label>Utility slots<input id="utility" type="number" min="0" value="1"></label></div>
+        <div><label>Utility assumed F<input id="utilityF" type="number" min="0" value="1"></label></div>
+        <div><label>Bench slots / team<input id="bench" type="number" min="0" value="0"></label></div>
+        <div><label>Bench assumed F<input id="benchF" type="number" min="0" value="0"></label></div>
+        <div><label>Bench assumed D<input id="benchD" type="number" min="0" value="0"></label></div>
+        <div><label>Bench assumed G<input id="benchG" type="number" min="0" value="0"></label></div>
+      </div>
+      <div class="hint">Replacement level includes starters, utility, and bench. Allocate your bench by position (the three bench assumptions should equal bench slots). Your current no-bench setup defaults to F100, D50, G20.</div>
+    </section>
+  </div>
+
+  <section>
+    <h2>3. Scoring settings</h2>
+    <div id="scoringRows"></div>
+    <div class="actions"><button id="addStat" class="secondary" type="button">Add scoring stat</button><button id="calculate" type="button">Calculate VORP rankings</button><button id="download" class="secondary" type="button">Download rankings CSV</button></div>
+    <div class="hint">Enter the CSV header exactly as it appears in your projections file. Leave a stat out if your league does not score it. “Points per unit” may be negative.</div>
+  </section>
+
+  <section>
+    <h2>Saved league settings</h2>
+    <div class="twocol">
+      <div><label>Preset name<input id="presetName" type="text" placeholder="e.g. Main points league"></label></div>
+      <div><label>Saved presets<select id="presetSelect"><option value="">Choose a saved preset…</option></select></label></div>
+    </div>
+    <div class="actions"><button id="savePreset" type="button">Save / update preset</button><button id="loadPreset" class="secondary" type="button">Load selected preset</button><button id="deletePreset" class="secondary" type="button">Delete selected preset</button></div>
+    <div class="hint">A preset saves roster, utility and bench assumptions, plus all scoring settings. It does not save projection files or drafted-player marks.</div>
+  </section>
+
+  <div id="summary"></div>
+  <div id="filters" class="filters hidden"><strong>Show:</strong><label><input class="position-filter" type="checkbox" value="F" checked> F</label><label><input class="position-filter" type="checkbox" value="D" checked> D</label><label><input class="position-filter" type="checkbox" value="G" checked> G</label><label><input id="hideDrafted" type="checkbox"> Hide drafted</label><button id="clearDrafted" class="secondary" type="button">Clear drafted marks</button></div>
+  <div class="tablewrap"><div id="empty" class="empty">Upload a projections CSV to begin.</div><table id="results" class="hidden"><thead></thead><tbody></tbody></table></div>
+  <footer>VORP = projected fantasy points − the projected points of the replacement player at that player’s roster group. The <strong>D_PTS</strong> row calculates goals + assists (using the columns named in your Goals and Assists rows) only for defensemen.</footer>
+</main>
+<script>
+let skaterRows=[], goalieRows=[], rankings=[], rawHeaders=[], sortKey='vorp', sortAsc=false;
+const draftStorageKey='fantasy-hockey-vorp-drafted';
+let draftedKeys=new Set(JSON.parse(localStorage.getItem(draftStorageKey)||'[]'));
+const presetStorageKey='fantasy-hockey-vorp-presets';
+const settingIds=['teams','forwards','defense','goalies','utility','utilityF','bench','benchF','benchD','benchG'];
+const defaults=[['Goals','G',3],['Assists','A',2],['Power-play goals','PPG',0],['Power-play assists','PPA',0],['Short-handed goals','SHG',0],['Short-handed assists','SHA',0],['Shots','SOG',0.4],['Blocks','BLK',0.5],['Hits','HIT',0.2],['Defenseman point bonus','D_PTS',0],['Wins','W',3],['Saves','SV',0.2],['Shutouts','SO',3]];
+const $=id=>document.getElementById(id);
+function addStatRow(label='',column='',value='0') { const row=document.createElement('div'); row.className='score-row'; row.innerHTML=`<input aria-label="Stat label" placeholder="Stat label" value="${escapeAttr(label)}"><input aria-label="CSV column" placeholder="CSV column" value="${escapeAttr(column)}"><input aria-label="Points per unit" type="number" step="any" value="${value}"><button type="button" class="remove">×</button>`; row.querySelector('.remove').onclick=()=>row.remove(); $('scoringRows').append(row); }
+function escapeAttr(s){return String(s).replaceAll('&','&amp;').replaceAll('"','&quot;').replaceAll('<','&lt;')}
+defaults.forEach(x=>addStatRow(...x)); $('addStat').onclick=()=>addStatRow();
+function savedPresets(){try{return JSON.parse(localStorage.getItem(presetStorageKey)||'{}')}catch{return {}}}
+function refreshPresets(selected=''){const presets=savedPresets(),select=$('presetSelect');select.innerHTML='<option value="">Choose a saved preset…</option>'+Object.keys(presets).sort().map(name=>`<option value="${escapeAttr(name)}">${escapeHTML(name)}</option>`).join('');select.value=selected}
+function snapshotSettings(){return {values:Object.fromEntries(settingIds.map(id=>[id,$(id).value])),scoring:[...document.querySelectorAll('.score-row')].map(r=>{const x=r.querySelectorAll('input');return [x[0].value,x[1].value,x[2].value]})}}
+function applySettings(settings){for(const id of settingIds)if(settings.values?.[id]!==undefined)$(id).value=settings.values[id];$('scoringRows').innerHTML='';(settings.scoring||defaults).forEach(row=>addStatRow(...row))}
+$('savePreset').onclick=()=>{const name=$('presetName').value.trim();if(!name){alert('Give this league setting a name first.');return}const presets=savedPresets();presets[name]=snapshotSettings();localStorage.setItem(presetStorageKey,JSON.stringify(presets));refreshPresets(name)};
+$('loadPreset').onclick=()=>{const name=$('presetSelect').value,preset=savedPresets()[name];if(!preset){alert('Choose a saved preset first.');return}applySettings(preset);$('presetName').value=name};
+$('deletePreset').onclick=()=>{const name=$('presetSelect').value;if(!name){alert('Choose a saved preset first.');return}if(!confirm(`Delete the saved preset “${name}”?`))return;const presets=savedPresets();delete presets[name];localStorage.setItem(presetStorageKey,JSON.stringify(presets));refreshPresets()};
+refreshPresets();
+function parseCSV(text) { const rows=[]; let row=[], field='', quoted=false; for(let i=0;i<text.length;i++){let c=text[i]; if(quoted){if(c==='"'&&text[i+1]==='"'){field+='"';i++}else if(c==='"')quoted=false;else field+=c}else if(c==='"')quoted=true;else if(c===','){row.push(field.trim());field=''}else if(c==='\n'){row.push(field.trim()); if(row.some(x=>x!==''))rows.push(row);row=[];field=''}else if(c!=='\r')field+=c} row.push(field.trim()); if(row.some(x=>x!==''))rows.push(row); const hs=rows.shift().map((h,i)=>h||`Column ${i+1}`); return {hs,data:rows.map(r=>Object.fromEntries(hs.map((h,i)=>[h,r[i]??''])))}; }
+$('skaterFile').onchange=async e=>{const file=e.target.files[0]; if(!file)return; const parsed=parseCSV(await file.text()); skaterRows=parsed.data; $('skaterStatus').textContent=`Loaded ${skaterRows.length} skaters from ${file.name}.`; ['skaterNameCol','skaterPositionCol'].forEach((id)=>{const select=$(id);select.innerHTML=parsed.hs.map(h=>`<option value="${escapeAttr(h)}">${h}</option>`).join('');}); const nameGuess=parsed.hs.find(h=>/player|name/i.test(h)),posGuess=parsed.hs.find(h=>/position|pos/i.test(h));if(nameGuess)$('skaterNameCol').value=nameGuess;if(posGuess)$('skaterPositionCol').value=posGuess;$('skaterMapping').classList.remove('hidden');};
+$('goalieFile').onchange=async e=>{const file=e.target.files[0]; if(!file)return; const parsed=parseCSV(await file.text()); goalieRows=parsed.data; $('goalieStatus').textContent=`Loaded ${goalieRows.length} goalies from ${file.name}.`; const select=$('goalieNameCol');select.innerHTML=parsed.hs.map(h=>`<option value="${escapeAttr(h)}">${h}</option>`).join(''); const nameGuess=parsed.hs.find(h=>/player|name/i.test(h));if(nameGuess)select.value=nameGuess;$('goalieMapping').classList.remove('hidden');};
+function group(pos){pos=String(pos||'').toUpperCase(); return /(^|[\/, -])G([\/, -]|$)|GOAL/.test(pos)?'G':/(^|[\/, -])D([\/, -]|$)|DEF/.test(pos)?'D':'F'}
+function number(v){const n=Number(String(v??'').replace(/,/g,''));return Number.isFinite(n)?n:0}
+function calculate(){if(!skaterRows.length&&!goalieRows.length){alert('Please upload at least one projections CSV first.');return} const scoring=[...document.querySelectorAll('.score-row')].map(r=>{const x=r.querySelectorAll('input');return {label:x[0].value,column:x[1].value.trim().toUpperCase(),weight:number(x[2].value)}}).filter(x=>x.column&&x.weight); const teams=number($('teams').value), bench=number($('bench').value), benchF=number($('benchF').value),benchD=number($('benchD').value),benchG=number($('benchG').value); if(bench!==benchF+benchD+benchG){alert('Bench allocation must equal the number of bench slots per team.');return} const f=Math.max(0,Math.round(teams*(number($('forwards').value)+number($('utilityF').value)+benchF))),d=Math.max(0,Math.round(teams*(number($('defense').value)+benchD))),g=Math.max(0,Math.round(teams*(number($('goalies').value)+benchG))); const goalsColumn=scoring.find(s=>/^goals?$/i.test(s.label))?.column, assistsColumn=scoring.find(s=>/^assists?$/i.test(s.label))?.column;
+ const sourceToPlayer=(rows,nameCol,forcedPos)=>rows.map(r=>{const pos=forcedPos||r[nameCol.pos]||'';const player={name:r[nameCol.name]||'Unnamed player',pos,group:group(pos),points:0,raw:r};const statValue=column=>number(r[Object.keys(r).find(h=>h.toUpperCase()===column)]);player.points=scoring.reduce((sum,s)=>sum+(s.column==='D_PTS'&&player.group==='D'?statValue(goalsColumn)+statValue(assistsColumn):statValue(s.column))*s.weight,0);return player}); const players=[...sourceToPlayer(skaterRows,{name:$('skaterNameCol').value,pos:$('skaterPositionCol').value}),...sourceToPlayer(goalieRows,{name:$('goalieNameCol').value},'G')]; const excluded=new Set([$('skaterNameCol').value,$('skaterPositionCol').value,$('goalieNameCol').value]);rawHeaders=[...new Set(players.flatMap(p=>Object.keys(p.raw)))].filter(h=>!excluded.has(h)); const bases={}; for(const [key,n] of Object.entries({F:f,D:d,G:g})){const list=players.filter(p=>p.group===key).sort((a,b)=>b.points-a.points); bases[key]=list.length?list[Math.min(Math.max(n-1,0),list.length-1)].points:0;} rankings=players.map(p=>({...p,replacement:bases[p.group],vorp:p.points-bases[p.group],key:`${p.name}|${p.pos}`,drafted:draftedKeys.has(`${p.name}|${p.pos}`)})); rankings.sort((a,b)=>b.vorp-a.vorp).forEach((p,i)=>p.overallRank=i+1); $('summary').textContent=`Replacement levels: F${f} (${bases.F.toFixed(1)} pts), D${d} (${bases.D.toFixed(1)} pts), G${g} (${bases.G.toFixed(1)} pts). ${rankings.length} players ranked.`; $('filters').classList.remove('hidden'); render(); }
+function render(){rankings.sort((a,b)=>{let x=sortKey.startsWith('raw:')?a.raw[sortKey.slice(4)]:a[sortKey],y=sortKey.startsWith('raw:')?b.raw[sortKey.slice(4)]:b[sortKey],xn=Number(String(x).replace(/,/g,'')),yn=Number(String(y).replace(/,/g,''));if(String(x).trim()!==''&&String(y).trim()!==''&&Number.isFinite(xn)&&Number.isFinite(yn))return (xn-yn)*(sortAsc?1:-1);return String(x).localeCompare(String(y))*(sortAsc?1:-1)}); const activeGroups=new Set([...document.querySelectorAll('.position-filter:checked')].map(x=>x.value));const hideDrafted=$('hideDrafted').checked; const shown=rankings.filter(p=>activeGroups.has(p.group)&&(!hideDrafted||!p.drafted));const heads=[['Drafted',''],['Rank','overallRank'],['Player','name'],['Position','pos'],['Group','group'],['Projected points','points'],['Replacement points','replacement'],['VORP','vorp'],...rawHeaders.map(h=>[h,`raw:${h}`])];$('results').querySelector('thead').innerHTML=`<tr>${heads.map(([label,key])=>`<th ${key?`data-key="${escapeAttr(key)}"`:''}>${escapeHTML(label)}${key?' ↕':''}</th>`).join('')}</tr>`; const body=$('results').querySelector('tbody');body.innerHTML=shown.map(p=>`<tr class="${p.drafted?'drafted':''}"><td><input class="draft-check" type="checkbox" data-player="${escapeAttr(p.key)}" ${p.drafted?'checked':''} aria-label="Mark ${escapeAttr(p.name)} as drafted"></td><td class="rank">${p.overallRank}</td><td>${escapeHTML(p.name)}</td><td>${escapeHTML(p.pos)}</td><td>${p.group}</td><td>${p.points.toFixed(1)}</td><td>${p.replacement.toFixed(1)}</td><td class="vorp ${p.vorp<0?'negative':''}">${p.vorp.toFixed(1)}</td>${rawHeaders.map(h=>`<td>${escapeHTML(p.raw[h]??'')}</td>`).join('')}</tr>`).join('');document.querySelectorAll('th[data-key]').forEach(th=>th.onclick=()=>{const k=th.dataset.key;if(k===sortKey)sortAsc=!sortAsc;else{sortKey=k;sortAsc=k==='name'||k==='pos'||k==='group'}render()});document.querySelectorAll('.draft-check').forEach(box=>box.onchange=()=>{const p=rankings.find(p=>p.key===box.dataset.player);p.drafted=box.checked;box.checked?draftedKeys.add(p.key):draftedKeys.delete(p.key);localStorage.setItem(draftStorageKey,JSON.stringify([...draftedKeys]));render()});$('empty').classList.add('hidden');$('results').classList.remove('hidden')}
+function escapeHTML(s){return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')}
+document.querySelectorAll('.position-filter').forEach(box=>box.onchange=render);$('hideDrafted').onchange=render;$('clearDrafted').onclick=()=>{draftedKeys.clear();localStorage.removeItem(draftStorageKey);rankings.forEach(p=>p.drafted=false);render()}; $('calculate').onclick=calculate;
+$('download').onclick=()=>{if(!rankings.length){alert('Calculate rankings first.');return}const lines=[['Rank','Player','Position','Group','Projected fantasy points','Replacement points','VORP'],...rankings.map((p,i)=>[i+1,p.name,p.pos,p.group,p.points.toFixed(2),p.replacement.toFixed(2),p.vorp.toFixed(2)])].map(r=>r.map(v=>'"'+String(v).replaceAll('"','""')+'"').join(',')).join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([lines],{type:'text/csv'}));a.download='fantasy-hockey-vorp-rankings.csv';a.click();URL.revokeObjectURL(a.href)};
+</script></body></html>
