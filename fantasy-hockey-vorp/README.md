@@ -1,18 +1,19 @@
 # Fantasy Hockey VORP Draft Board
 
-A lightweight, browser-based fantasy hockey draft tool. Upload skater and goalie projections, enter your league’s scoring and roster rules, and generate a sortable Value Over Replacement Player (VORP) board for a points league.
+A lightweight, browser-based fantasy hockey draft tool. Upload one or two sets of skater and goalie projections, enter your league’s scoring and roster rules, and generate a sortable Value Over Replacement Player (VORP) board for a points league.
 
 Everything runs locally in your browser — there is no account, server, or upload of your projection data.
 
 ## Features
 
-- Import separate CSV projection files for skaters and goalies
+- Import up to two CSV projection files for skaters and up to two for goalies; the second projection is optional
 - Configure custom league scoring for any stat column in your files
 - Calculate projected fantasy points and VORP by forward, defense, and goalie replacement level
 - Account for teams, starter slots, utility slots, and position-specific bench allocation
 - Include power-play and short-handed scoring
 - Add a defenseman-only bonus for every point scored
-- Review raw projection stats directly beside the calculated results
+- Compare each player's VORP across two projection sets and see their average VORP
+- Review games played (GP) and scored projection stats beside the calculated results
 - Filter the board to F, D, or G and sort any result/stat column
 - Check off drafted players, optionally hide them, and keep those marks after refreshing
 - Save and switch between multiple named league/scoring presets
@@ -21,9 +22,9 @@ Everything runs locally in your browser — there is no account, server, or uplo
 ## Getting started
 
 1. Download or clone this repository.
-2. Open `fantasy-hockey-vorp.html` in a modern web browser.
-3. Upload a skater projections CSV and/or a goalie projections CSV.
-4. Select the appropriate player-name and position columns.
+2. Open `fantasy-hockey-vorp/index.html` in a modern web browser.
+3. Upload at least one File 1 projections CSV. Add a File 1 skater file, a goalie file, or both.
+4. Optionally upload File 2 projections to compare a second set. Each file has its own player-name and, for skaters, position-column mapping.
 5. Enter your league setup and scoring values.
 6. Select **Calculate VORP rankings**.
 
@@ -33,15 +34,18 @@ No installation or web server is required.
 
 The tool is flexible about CSV headers. You choose the player-name and position fields after upload, then enter the relevant CSV header beside each scoring rule.
 
-Your skater file should include:
+Each uploaded projection file should have a header row. Skater files should include:
 
 | Required data | Example headers |
 | --- | --- |
 | Player name | `Player`, `Name` |
 | Position | `Pos`, `Position` |
 | Scoring stats | `G`, `A`, `SOG`, `PPG`, `PPA`, `HIT`, `BLK` |
+| Games played (optional) | `GP` |
 
-Your goalie file needs a player-name column plus whichever goalie stats your scoring uses, such as `W`, `SV`, `GA`, `SO`, or `SA`. Goalies are automatically assigned to the G group.
+Goalie files need a player-name column plus whichever goalie stats your scoring uses, such as `W`, `SV`, `GA`, `SO`, or `SA`. An optional `GP` column is also supported. Goalies are automatically assigned to the G group.
+
+File 1 and File 2 players are matched by player name and roster group. If you upload only one File 2 file type, the corresponding File 1 file supplies the other type when calculating File 2 replacement levels. If a player appears in only one projection, their Average VORP uses the available projection value.
 
 Example skater CSV:
 
@@ -103,6 +107,8 @@ For example, a 10-team league with 9 F, 5 D, 2 G, and one forward-filled utility
 If your league uses benches, assign each bench spot to F, D, or G. For example, three bench slots per team allocated F2 / D0 / G1 changes the pool by 20 additional forwards and 10 additional goalies in a 10-team league.
 
 ## Live draft mode
+
+After calculating rankings, the board shows File 1 projected points and VORP, and—when File 2 is uploaded—File 2 projected points and VORP plus Average VORP. GP is shown alongside each projection's scored stat columns. Raw stat columns are limited to stats named in the scoring settings. Numeric projection and stat values are displayed to one decimal place; rank stays an integer.
 
 After calculating rankings:
 
